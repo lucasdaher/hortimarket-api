@@ -19,6 +19,7 @@ import { Role } from 'src/auth/enums/role.enum';
 @Injectable()
 export class OrderService {
   constructor(
+    // O construtor permanece o mesmo, as dependências já estão corretas
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(Product)
@@ -36,7 +37,7 @@ export class OrderService {
     await queryRunner.startTransaction();
 
     try {
-      const cart = await this.cartRepository.findOne({
+      const cart = await queryRunner.manager.findOne(Cart, {
         where: { user: { id: user.id } },
         relations: ['items', 'items.product'],
       });
@@ -45,9 +46,10 @@ export class OrderService {
         throw new BadRequestException('Seu carrinho está vazio.');
       }
 
-      const address = await this.addressRepository.findOne({
+      const address = await queryRunner.manager.findOne(Address, {
         where: { id: createOrderDto.addressId, user: { id: user.id } },
       });
+
       if (!address) {
         throw new NotFoundException(
           'Endereço não encontrado ou não pertence a este usuário.',
@@ -62,17 +64,19 @@ export class OrderService {
       const order = new Order();
       order.user = user;
       order.shippingAddress = address;
-      order.total = total;
-      order.status = OrderStatus.PROCESSING; // Pagamento simulado com sucesso
+      order.total = parseFloat(total.toFixed(2));
+      order.status = OrderStatus.PROCESSING;
       order.items = [];
 
       for (const item of cart.items) {
         const product = await queryRunner.manager.findOne(Product, {
           where: { id: item.product.id },
+          lock: { mode: 'pessimistic_write' },
         });
-        if (!product) {
-          throw new NotFoundException(`Este produto não foi encontrado.`);
-        }
+        if (!product)
+          throw new NotFoundException(
+            `Produto não encontrado, tente novamente.`,
+          );
         if (product.stock < item.quantity) {
           throw new BadRequestException(
             `Estoque insuficiente para o produto ${product.name}.`,
@@ -89,7 +93,7 @@ export class OrderService {
       }
 
       const savedOrder = await queryRunner.manager.save(order);
-      await queryRunner.manager.remove(cart); // Limpa o carrinho
+      await queryRunner.manager.remove(cart);
 
       await queryRunner.commitTransaction();
       return savedOrder;
@@ -108,7 +112,6 @@ export class OrderService {
         order: { orderDate: 'DESC' },
       });
     }
-    // Lojista vê os pedidos de seus produtos
     return this.orderRepository
       .createQueryBuilder('order')
       .leftJoin('order.items', 'item')
@@ -130,6 +133,10 @@ export class OrderService {
     if (user.role === Role.CLIENTE && order.user.id !== user.id) {
       throw new ForbiddenException('Acesso negado.');
     }
+    if (order.user) {
+      const { id, name, email, role, createdAt, updatedAt } = order.user;
+      order.user = { id, name, email, role, createdAt, updatedAt } as User;
+    }
     return order;
   }
 
@@ -138,7 +145,6 @@ export class OrderService {
     if (!order) {
       throw new NotFoundException('Pedido não encontrado.');
     }
-    // Lógica para verificar se o lojista é dono do pedido... omitida por simplicidade
     order.status = status;
     return this.orderRepository.save(order);
   }

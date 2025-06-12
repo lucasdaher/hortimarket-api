@@ -20,8 +20,6 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('product')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.LOJISTA)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
@@ -47,16 +45,22 @@ export class ProductController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LOJISTA)
   findAllMyProducts(@GetUser() user: User) {
     return this.productService.findAllByOwner(user.id);
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LOJISTA)
   findOne(@Param('id') id: string, @GetUser() user: User) {
     return this.productService.findOne(+id, user.id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LOJISTA)
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -66,6 +70,8 @@ export class ProductController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LOJISTA)
   remove(@Param('id') id: string, @GetUser() user: User) {
     return this.productService.remove(+id, user.id);
   }
