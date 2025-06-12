@@ -1,0 +1,227 @@
+# ======================================================
+#        ARQUIVO DE REQUISIÇÕES - HORTIMARKET API
+#             UTILIZAR A EXTENSÃO RESTCLIENT
+# ======================================================
+#
+# Instruções:
+# 1. Execute as requisições na ordem que fizer sentido.
+# 2. Recomendamos: Registre um lojista e um cliente.
+# 3. Faça login com o lojista para obter o lojistaToken.
+# 4. Use o lojistaToken para criar loja e produtos.
+# 5. Faça login com o cliente para obter o clienteToken.
+# 6. Use o clienteToken para navegar, favoritar, usar carrinho e comprar.
+#
+# ======================================================
+
+@baseUrl = http://localhost:3000
+
+######################################################
+#              FLUXO DE AUTENTICAÇÃO (AUTH)
+######################################################
+
+###
+# @name registerLojista
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Dono da Loja Fresh",
+  "email": "lojista@fresh.com",
+  "password": "password123",
+  "role": "lojista"
+}
+
+###
+# @name loginLojista
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "lojista@fresh.com",
+  "password": "password123"
+}
+
+###
+@lojistaToken = {{loginLojista.response.body.access_token}}
+
+###
+# @name registerCliente
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Cliente Fiel",
+  "email": "cliente@fiel.com",
+  "password": "password123",
+  "role": "cliente"
+}
+
+###
+# @name loginCliente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "cliente@fiel.com",
+  "password": "newPassword456"
+}
+
+###
+@clienteToken = {{loginCliente.response.body.access_token}}
+
+###
+# @name changePassword
+# Alterar senha do usuário logado (usando o token do cliente)
+PATCH {{baseUrl}}/auth/change-password
+Content-Type: application/json
+Authorization: Bearer {{clienteToken}}
+
+{
+    "oldPassword": "password123",
+    "newPassword": "newPassword456"
+}
+
+
+######################################################
+#              FLUXO DO LOJISTA (STORE & PRODUCT)
+######################################################
+
+###
+# @name createStore
+POST {{baseUrl}}/store
+Content-Type: application/json
+Authorization: Bearer {{lojistaToken}}
+
+{
+  "name": "Hortifruti Fresh",
+  "description": "Tudo fresco, todo dia."
+}
+
+###
+# @name getMyStore
+GET {{baseUrl}}/store/my-store
+Authorization: Bearer {{lojistaToken}}
+
+###
+# @name createProduct
+POST {{baseUrl}}/product
+Content-Type: application/json
+Authorization: Bearer {{lojistaToken}}
+
+{
+    "name": "Laranja Pera (Kg)",
+    "description": "Laranja doce e suculenta.",
+    "price": 5.50,
+    "stock": 100
+}
+
+###
+@productId = {{createProduct.response.body.id}}
+
+
+######################################################
+#              FLUXO PÚBLICO (VITRINE)
+######################################################
+
+###
+# @name listPublicProducts
+GET {{baseUrl}}/product/public?page=1&limit=10
+
+###
+# @name searchPublicProducts
+GET {{baseUrl}}/product/public?search=Laranja
+
+###
+# @name getPublicProductDetail
+GET {{baseUrl}}/product/public/{{productId}}
+
+
+######################################################
+#              FLUXO DO CLIENTE
+######################################################
+
+# ----------------- FAVORITOS -----------------
+###
+# @name addFavorite
+POST {{baseUrl}}/favorites/{{productId}}
+Authorization: Bearer {{clienteToken}}
+
+###
+# @name listFavorites
+GET {{baseUrl}}/favorites
+Authorization: Bearer {{clienteToken}}
+
+# ----------------- ENDEREÇOS -----------------
+###
+# @name createAddress
+POST {{baseUrl}}/address
+Content-Type: application/json
+Authorization: Bearer {{clienteToken}}
+
+{
+  "street": "Avenida Principal",
+  "number": "1000",
+  "neighborhood": "Bairro Nobre",
+  "city": "Capital",
+  "state": "DF",
+  "zipCode": "70000-000"
+}
+
+###
+@addressId = {{createAddress.response.body.id}}
+
+
+# ----------------- CARRINHO -----------------
+###
+# @name addToCart
+POST {{baseUrl}}/cart/add
+Content-Type: application/json
+Authorization: Bearer {{clienteToken}}
+
+{
+  "productId": {{productId}},
+  "quantity": 2
+}
+
+###
+# @name viewCart
+GET {{baseUrl}}/cart
+Authorization: Bearer {{clienteToken}}
+
+
+# ----------------- PEDIDO (CHECKOUT) -----------------
+###
+# @name checkout
+POST {{baseUrl}}/order/checkout
+Content-Type: application/json
+Authorization: Bearer {{clienteToken}}
+
+{
+  "addressId": {{addressId}}
+}
+
+###
+@orderId = {{checkout.response.body.id}}
+
+###
+# @name getOrderHistory
+GET {{baseUrl}}/order
+Authorization: Bearer {{clienteToken}}
+
+
+# ----------------- PÓS-VENDA -----------------
+###
+# @name deliverOrder (Ação do Lojista)
+PATCH {{baseUrl}}/order/{{orderId}}/deliver
+Authorization: Bearer {{lojistaToken}}
+
+###
+# @name reviewOrder (Ação do Cliente)
+POST {{baseUrl}}/review/order/{{orderId}}
+Content-Type: application/json
+Authorization: Bearer {{clienteToken}}
+
+{
+    "rating": 5,
+    "comment": "Entrega perfeita e produto de ótima qualidade!"
+}
