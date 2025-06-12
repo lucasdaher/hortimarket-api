@@ -22,9 +22,7 @@ Antes de começar, garanta que você tenha os seguintes softwares instalados em 
 - [MySQL](https://www.mysql.com/downloads/) (ou um servidor MySQL compatível, como MariaDB)
 - [Git](https://git-scm.com/)
 
----
-
-## 🚀 Como Executar a Aplicação
+## Como Executar a Aplicação
 
 Siga os passos abaixo para configurar e rodar o ambiente de desenvolvimento local.
 
